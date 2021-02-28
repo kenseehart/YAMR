@@ -1,5 +1,5 @@
 # YAMR
- Yet Another Max Reduce
+ Yet Another Max Reduce (for CUDA)
 
 This approach appears naive but isn't. This won't generalize to other functions like `sum()`, but it works great for `min()` and `max()`.
 
