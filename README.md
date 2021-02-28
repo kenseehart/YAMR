@@ -3,13 +3,15 @@
 
 This approach appears naive but isn't. This won't generalize to other functions like `sum()`, but it works great for `min()` and `max()`.
 
+    __device__ const float float_min = -3.402e+38;
+    
     __global__ void maxKernel(float* d_data)
     { 
         // compute max over all threads, store max in d_data[0]
         int i = threadIdx.x;
         __shared__ float max_value;
     
-        if (i == 0) max_value = 0.0f;
+        if (i == 0) max_value = float_min;
         __syncthreads();
     
         float v = d_data[i];
