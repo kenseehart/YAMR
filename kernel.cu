@@ -27,8 +27,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdio.h>
 
+const float float_min = -3.402e+38;
 
-__device__ const float float_min = -3.402e+38;
+__device__ const float d_float_min = -3.402e+38;
 
 __host__ void _cudaCheckError(const char* file, int line)
 {
@@ -44,16 +45,16 @@ __host__ void _cudaCheckError(const char* file, int line)
 #define cudaCheckError _cudaCheckError(__FILE__, __LINE__)
 
 
-__global__ void maxReduce(float* d_data)
+__global__ void maxReduce(volatile float* d_data)
 {
     // compute max over all threads, store max in d_data[0]
     int i = threadIdx.x;
-    __shared__ float max_value;
+    __shared__ volatile float max_value;
 
-    if (i == 0) max_value = float_min;
-    __syncthreads();
+    if (i == 0) max_value = d_float_min;
 
     float v = d_data[i];
+    __syncthreads();
 
     while (max_value < v)
     {
@@ -65,7 +66,7 @@ __global__ void maxReduce(float* d_data)
 }
 
 
-void testMax(int n)
+void testMax(int n, bool verbose)
 {
     float* h_data, * d_data;
     float cpu_max = float_min;
@@ -77,7 +78,7 @@ void testMax(int n)
     for (int i = 0; i < n; i++)
     {
         // randomize
-        h_data[i] = -(float)rand() / (float)(1 + rand());
+        h_data[i] = (float)rand() / (float)(1 + rand());
 
         // get cpu opinion of the max for testing
         if (cpu_max < h_data[i]) cpu_max = h_data[i];
@@ -88,17 +89,26 @@ void testMax(int n)
     cudaDeviceSynchronize(); cudaCheckError;
 
     // did the gpu get the same answer as the cpu?
-    printf("cpu_max = %f, gpu_max = %f, result = %s\n", cpu_max, h_data[0], (cpu_max == h_data[0]) ? "PASS" : "FAIL");
+    if (verbose)
+    {
+        printf("n =%6d cpu_max =%12.4f, gpu_max =%12.4f, result = %s\n", n, cpu_max, h_data[0], (cpu_max == h_data[0]) ? "PASS" : "FAIL");
+    }
+    else
+    {
+        if (cpu_max != h_data[0])
+        printf("FAIL");
+    }
 }
 
 
 int main()
 {
-
-    for (int i = 1; i < 150; i++)
+    for (int j = 1; j < 5000; j++)
     {
-        testMax(i * 5);
+        for (int i = 1; i < 16; i++)
+        {
+            testMax(i*31, j<20);
+        }
     }
-
     return 0;
 }
