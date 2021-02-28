@@ -12,9 +12,9 @@ This approach appears naive but isn't. This won't generalize to other functions 
         __shared__ float max_value;
     
         if (i == 0) max_value = float_min;
-        __syncthreads();
     
         float v = d_data[i];
+        __syncthreads();
     
         while (max_value < v) max_value = v;
     
