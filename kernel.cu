@@ -27,6 +27,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdio.h>
 
+
+__device__ const float float_min = -3.402e+38;
+
 __host__ void _cudaCheckError(const char* file, int line)
 {
     cudaError_t err = cudaGetLastError();
@@ -47,7 +50,7 @@ __global__ void maxReduce(float* d_data)
     int i = threadIdx.x;
     __shared__ float max_value;
 
-    if (i == 0) max_value = 0.0f;
+    if (i == 0) max_value = float_min;
     __syncthreads();
 
     float v = d_data[i];
@@ -65,7 +68,7 @@ __global__ void maxReduce(float* d_data)
 void testMax(int n)
 {
     float* h_data, * d_data;
-    float cpu_max = 0.0f;
+    float cpu_max = float_min;
 
     // Allocate memory mapped data
     cudaHostAlloc((void**)&h_data, n * sizeof(float), cudaHostAllocMapped); cudaCheckError;
@@ -74,7 +77,7 @@ void testMax(int n)
     for (int i = 0; i < n; i++)
     {
         // randomize
-        h_data[i] = (float)rand() / (float)(1 + rand());
+        h_data[i] = -(float)rand() / (float)(1 + rand());
 
         // get cpu opinion of the max for testing
         if (cpu_max < h_data[i]) cpu_max = h_data[i];
