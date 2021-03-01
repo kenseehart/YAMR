@@ -45,24 +45,32 @@ __host__ void _cudaCheckError(const char* file, int line)
 #define cudaCheckError _cudaCheckError(__FILE__, __LINE__)
 
 
-__global__ void maxReduce(volatile float* d_data)
+__global__ void maxReduce(volatile float* d_data, int n)
 {
     // compute max over all threads, store max in d_data[0]
-    int i = threadIdx.x;
+    int ti = threadIdx.x;
+
     __shared__ volatile float max_value;
 
-    if (i == 0) max_value = d_float_min;
+    if (ti == 0) max_value = d_float_min;
 
-    float v = d_data[i];
-    __syncthreads();
-
-    while (max_value < v)
+    for (int bi = 0; bi < n; bi += 32)
     {
-        max_value = v;
+        int i = bi + ti;
+        if (i >= n) break;
+        
+        float v = d_data[i];
+        __syncthreads();
+
+        while (max_value < v)
+        {
+            max_value = v;
+        }
+
+        __syncthreads();
     }
 
-    __syncthreads();
-    if (i == 0) d_data[0] = max_value;
+    if (ti == 0) d_data[0] = max_value;
 }
 
 
@@ -78,14 +86,14 @@ void testMax(int n, bool verbose)
     for (int i = 0; i < n; i++)
     {
         // randomize
-        h_data[i] = (float)rand() / (float)(1 + rand());
+        h_data[i] = (float)rand() / (1 + rand()) - (float)rand() / (1 + rand());
 
         // get cpu opinion of the max for testing
         if (cpu_max < h_data[i]) cpu_max = h_data[i];
     }
 
     // run the kernel
-    maxReduce << <1, n >> > (d_data); cudaCheckError;
+    maxReduce << <1, 32 >> > (d_data, n); cudaCheckError;
     cudaDeviceSynchronize(); cudaCheckError;
 
     // did the gpu get the same answer as the cpu?
@@ -96,19 +104,22 @@ void testMax(int n, bool verbose)
     else
     {
         if (cpu_max != h_data[0])
-        printf("FAIL");
+        {
+            printf("\nn =%6d %02dw+%02d cpu_max =%12.4f, gpu_max =%12.4f, result = FAIL\n", n, n/32, n%32, cpu_max, h_data[0]);
+        }
     }
 }
 
 
 int main()
 {
-    for (int j = 1; j < 5000; j++)
+    for (int j = 1; j < 50000; j++)
     {
-        for (int i = 1; i < 16; i++)
-        {
-            testMax(i*31, j<20);
-        }
+        int n = 2 + rand() % 10000;
+
+        testMax(n, j<20);
+
+        if (j > 20 && j%100==0) printf(".");
     }
     return 0;
 }
