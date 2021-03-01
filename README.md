@@ -1,7 +1,7 @@
 # YAMR
  Yet Another Max Reduce (for CUDA)
 
-This approach appears naive but isn't. This won't generalize to other functions like `sum()`, but it works great for `min()` and `max()`.
+This approach appears naive but isn't. This won't generalize to other functions like `sum()`, but it works great for `min()` and `max()`. Also, this implementation is for arrays up to one block (1024, 2048, 4096 depending on your hardware).
 
     __device__ const float float_min = -3.402e+38;
     
